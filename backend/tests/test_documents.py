@@ -29,12 +29,9 @@ def test_malformed_pdf():
 
 def test_temporary_files_cleaned(monkeypatch, tmp_path):
     created = tmp_path / "isolated"
-    class TrackedDirectory:
-        def __init__(self, **kwargs): pass
-        def __enter__(self): created.mkdir(); return str(created)
-        def __exit__(self, *args):
-            for child in created.iterdir(): child.unlink()
-            created.rmdir()
-    monkeypatch.setattr("app.documents.processor.tempfile.TemporaryDirectory", TrackedDirectory)
+    def tracked_directory(**kwargs):
+        created.mkdir()
+        return str(created)
+    monkeypatch.setattr("app.documents.processor.tempfile.mkdtemp", tracked_directory)
     PDFProcessor().extract(encrypted_pdf(tmp_path), "fixture-password")
     assert not created.exists()

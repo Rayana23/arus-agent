@@ -4,7 +4,9 @@ Arus is a Gmail-native financial statement agent. It discovers supported stateme
 
 ## What is implemented
 
-- Responsive Next.js dashboard with Overview, Statements, Review, Agent Activity, and Settings views.
+- Responsive Next.js dashboard with Overview, Transactions, Statements, Review, Agent Activity, and Settings views.
+- Backend-aware integration status, visible encrypted-PDF import, real Gmail OAuth controls, and truthful real/synthetic/mocked labels.
+- Transaction search, category/account/date filters, sorting, pagination, category correction, source-page provenance, and CSV export.
 - FastAPI health, import, sync, statement, overview, job, provider-health, and activity endpoints.
 - Local encrypted-PDF detection, SHA-256 deduplication key, isolated decryption, page-aware text extraction, and automatic temporary-file cleanup.
 - Provider-neutral model interface, genuine OpenRouter client, safe health check, strict Pydantic output, timeout, and bounded retries.
@@ -16,7 +18,7 @@ Arus is a Gmail-native financial statement agent. It discovers supported stateme
 
 - **Fixture-driven:** the dashboard and default sync response use clearly labelled synthetic Gmail metadata and synthetic financial records.
 - **Mocked in tests:** OpenRouter responses and Gmail attachments. The opt-in integration test makes a real safe OpenRouter connectivity call when a key is configured.
-- **Planned wiring:** Gmail OAuth discovery in `RealGmailAdapter` needs an authenticated read-only Gmail service. Password retry needs attachment re-fetching. The hosted dashboard remains a safe demo surface; local FastAPI runs the processing pipeline.
+- **Credential-dependent:** Gmail OAuth and real attachment discovery are implemented but need Google client credentials and authorization. OpenRouter verification needs a local API key. Password retry uses manual source re-submission.
 - **Not implemented:** Exa, OpenAI briefings, Gemma, online banking access, or a chat interface.
 
 ## Setup
@@ -61,4 +63,4 @@ The real OpenRouter check is opt-in:
 pytest -m integration backend/tests/test_provider.py
 ```
 
-No test prints credentials. See `docs/security.md` before using real statements.
+No test prints credentials. See `docs/security.md`, `docs/integration-audit.md`, and `docs/manual-test-checklist.md` before using real statements.

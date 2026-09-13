@@ -71,3 +71,4 @@ class ProviderHealth(BaseModel):
     status: str
     latency_ms: int
     error_type: str | None = None
+    request_id: str | None = None

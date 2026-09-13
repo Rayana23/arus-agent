@@ -30,6 +30,16 @@ async def test_timeout_has_bounded_retries():
     assert calls == 3
 
 
+@pytest.mark.asyncio
+async def test_real_verification_shape_uses_minimal_request():
+    async def handler(request):
+        assert b"Connectivity check" in request.content
+        assert b"statement" not in request.content.lower()
+        return httpx.Response(200, headers={"x-request-id": "safe-request-id"}, json={"choices": [{"message": {"content": '{"status":"ok"}'}}]})
+    result = await OpenRouterClient(api_key="test-only", transport=httpx.MockTransport(handler)).verify()
+    assert result.status == "ok" and result.request_id == "safe-request-id"
+
+
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_real_openrouter_connectivity_when_configured():

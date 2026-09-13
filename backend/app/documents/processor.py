@@ -1,4 +1,5 @@
 import hashlib
+import shutil
 import tempfile
 from pathlib import Path
 import pdfplumber
@@ -24,7 +25,8 @@ class PDFProcessor:
     def extract(self, content: bytes, password: str) -> list[tuple[int, str]]:
         if not content.startswith(b"%PDF"):
             raise UnsupportedDocument("The attachment is not a supported PDF.")
-        with tempfile.TemporaryDirectory(prefix="arus-") as tmp:
+        tmp = tempfile.mkdtemp(prefix="arus-")
+        try:
             source = Path(tmp) / "source.pdf"
             decrypted = Path(tmp) / "decrypted.pdf"
             source.write_bytes(content)
@@ -40,3 +42,5 @@ class PDFProcessor:
                 for index, page in enumerate(pdf.pages, 1):
                     pages.append((index, page.extract_text() or ""))
             return pages
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)

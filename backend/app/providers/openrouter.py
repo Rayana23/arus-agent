@@ -32,6 +32,21 @@ class OpenRouterClient(ModelClient):
         except Exception as exc:
             return ProviderHealth(provider="OpenRouter", configured_model=self.model, status="error", latency_ms=int((time.perf_counter()-started)*1000), error_type=type(exc).__name__)
 
+    async def verify(self) -> ProviderHealth:
+        started = time.perf_counter()
+        if not self.api_key:
+            return ProviderHealth(provider="OpenRouter", configured_model=self.model, status="not_configured", latency_ms=0, error_type="MissingCredential")
+        body = {"model": self.model, "messages": [{"role": "system", "content": "Return only a JSON object with status set to ok."}, {"role": "user", "content": "Connectivity check."}], "response_format": {"type": "json_object"}, "max_tokens": 12, "temperature": 0}
+        try:
+            async with httpx.AsyncClient(timeout=min(self.timeout, 20.0), transport=self.transport) as client:
+                response = await client.post(f"{settings.openrouter_base_url}/chat/completions", headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}, json=body)
+                response.raise_for_status()
+                response.json()["choices"][0]["message"]["content"]
+            request_id = response.headers.get("x-request-id") or response.headers.get("cf-ray")
+            return ProviderHealth(provider="OpenRouter", configured_model=self.model, status="ok", latency_ms=int((time.perf_counter()-started)*1000), request_id=request_id)
+        except Exception as exc:
+            return ProviderHealth(provider="OpenRouter", configured_model=self.model, status="error", latency_ms=int((time.perf_counter()-started)*1000), error_type=type(exc).__name__)
+
     async def extract(self, page_text: list[tuple[int, str]]) -> StatementExtraction:
         if not self.api_key:
             raise ProviderError("OpenRouter is not configured")
