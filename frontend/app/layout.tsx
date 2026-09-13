@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import "@copilotkit/react-core/v2/styles.css";
 import "./globals.css";
+import { ArusCopilotProvider } from "@/components/copilot-provider";
 
 export const metadata: Metadata = {
   title: "Arus · Financial agent",
@@ -17,7 +19,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased"><ArusCopilotProvider>{children}</ArusCopilotProvider></body>
     </html>
   );
 }

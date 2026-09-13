@@ -51,6 +51,14 @@ export default defineConfig(async () => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
   return {
+    resolve: {
+      alias: {
+        "process/": "node:process",
+      },
+    },
+    ssr: {
+      noExternal: ["@copilotkit/runtime", "pino-pretty", "readable-stream", "process"],
+    },
     server: {
       ...(managedLinux ? { host: "0.0.0.0", allowedHosts: ["terminal.local"] } : {}),
       ...(isCodexSeatbeltSandbox ? { watch: { useFsEvents: false, usePolling: true } } : {}),

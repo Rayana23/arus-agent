@@ -72,3 +72,23 @@ class ProviderHealth(BaseModel):
     latency_ms: int
     error_type: str | None = None
     request_id: str | None = None
+
+
+class GoalCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=100)
+    purpose: str = Field(min_length=1, max_length=40)
+    target_amount: Decimal = Field(gt=0, max_digits=16, decimal_places=2)
+    saved_amount: Decimal = Field(default=Decimal("0"), ge=0, max_digits=16, decimal_places=2)
+    currency: str = Field(default="MYR", pattern=r"^[A-Z]{3}$")
+    target_date: date | None = None
+
+
+class GoalUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    purpose: str | None = Field(default=None, min_length=1, max_length=40)
+    target_amount: Decimal | None = Field(default=None, gt=0, max_digits=16, decimal_places=2)
+    saved_amount: Decimal | None = Field(default=None, ge=0, max_digits=16, decimal_places=2)
+    currency: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
+    target_date: date | None = None

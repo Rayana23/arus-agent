@@ -13,8 +13,8 @@ from app.gmail.adapters import RealGmailAdapter
 from app.gmail.oauth import authorization_url, connected_account, disconnect, exchange_callback, gmail_service, oauth_configured
 from app.gmail.sync import sync_attachments
 from app.ledger.reconcile import reconcile
-from app.models.db import AgentRun, SessionLocal, StatementRecord
-from app.models.schemas import StatementState
+from app.models.db import AgentRun, GoalRecord, SessionLocal, StatementRecord
+from app.models.schemas import GoalCreate, GoalUpdate, StatementState
 from app.providers.openrouter import OpenRouterClient, ProviderError
 
 router = APIRouter(prefix="/api")
@@ -66,7 +66,7 @@ async def integration_status():
     gmail_connected = account is not None
     openrouter_configured = bool(settings.openrouter_api_key and settings.openrouter_model and settings.openrouter_base_url)
     return {
-        "gmail": {"implemented": True, "connected": gmail_connected, "mode": "real" if gmail_connected else "synthetic", "account": account, "status": "Connected — real" if gmail_connected else "Synthetic demo"},
+        "gmail": {"implemented": True, "connected": gmail_connected, "mode": "real", "account": account, "status": "Connected — real" if gmail_connected else "Setup required"},
         "openrouter": {"implemented": True, "configured": openrouter_configured, "verified": bool(openrouter_verification["verified"]), "mode": "real", "model": settings.openrouter_model, "status": "Connected — real" if openrouter_verification["verified"] else "Configured but unverified" if openrouter_configured else "Not configured"},
         "pdf": {"implemented": True, "encrypted_pdf_supported": True, "status": "Connected — real"},
         "exa": {"implemented": False, "configured": False, "status": "Not configured"},
@@ -97,7 +97,10 @@ async def google_start():
 @router.get("/auth/google/callback")
 async def google_callback(request: Request, state: str):
     try: exchange_callback(str(request.url), state)
-    except Exception as exc: raise HTTPException(400, "Google OAuth callback could not be completed") from exc
+    except Exception as exc:
+        error_type = type(exc).__name__
+        print(f"Google OAuth callback failed safely: {error_type}: {str(exc)[:180]}", flush=True)
+        raise HTTPException(400, {"code": error_type, "message": "Google OAuth token exchange failed"}) from exc
     return RedirectResponse(f"{settings.arus_frontend_url}/?view=settings&gmail=connected")
 
 
@@ -110,10 +113,11 @@ async def import_statement(pdf: UploadFile = File(...), user_id: str = Form(...)
     content = await pdf.read(); digest = processor.hash_bytes(content); job_id = f"job_{uuid.uuid4().hex[:12]}"
     with SessionLocal() as db:
         existing = db.scalar(select(StatementRecord).where(StatementRecord.attachment_sha256 == digest))
-        if existing and existing.state != StatementState.NEEDS_PASSWORD:
+        if existing and existing.state not in {StatementState.NEEDS_PASSWORD, StatementState.NEEDS_REVIEW}:
             return {"job_id": job_id, "statement_id": existing.id, "state": existing.state, "duplicate": True}
         record = existing or StatementRecord(user_id=user_id, attachment_sha256=digest, bank_layout=bank_layout, state=StatementState.PROCESSING)
         record.state = StatementState.PROCESSING; record.bank_layout = bank_layout
+        record.safe_error = None; record.model_extraction = None; record.accepted_extraction = None; record.user_corrections = None
         if not existing: db.add(record)
         db.commit(); db.refresh(record)
         try:
@@ -203,12 +207,68 @@ async def overview():
         for row in rows:
             value = row.accepted_records or {}
             closing = Decimal(str(value.get("closing_balance") or "0"))
-            if value.get("account_type") == "credit_card": debt += closing
+            account_type = str(value.get("account_type") or "").lower()
+            is_credit_account = value.get("card_due_amount") is not None or any(marker in account_type for marker in ("credit", "card", "visa", "mastercard"))
+            if is_credit_account: debt += closing
             else: cash += closing
             if value.get("statement_end_date"): dates.append(value["statement_end_date"])
             for txn in value.get("transactions", []):
                 amount = Decimal(str(txn["amount"])); income += amount if txn["direction"] == "credit" else Decimal("0"); spending += amount if txn["direction"] == "debit" else Decimal("0")
         return {"latest_reported_cash": str(cash), "reported_card_debt": str(debt), "income": str(income), "spending": str(spending), "verified_statement_count": len(rows), "total_statement_count": all_count, "balance_dates": dates, "mixed_dates": len(set(dates)) > 1, "data_mode": "real" if rows else "empty"}
+
+
+def serialize_goal(goal: GoalRecord) -> dict:
+    return {
+        "id": goal.id,
+        "name": goal.name,
+        "purpose": goal.purpose,
+        "target_amount": str(goal.target_amount),
+        "saved_amount": str(goal.saved_amount),
+        "currency": goal.currency,
+        "target_date": goal.target_date,
+        "created_at": goal.created_at,
+        "updated_at": goal.updated_at,
+    }
+
+
+@router.get("/goals")
+async def goals():
+    with SessionLocal() as db:
+        rows = db.scalars(select(GoalRecord).order_by(GoalRecord.created_at.desc())).all()
+        return [serialize_goal(row) for row in rows]
+
+
+@router.post("/goals", status_code=201)
+async def create_goal(payload: GoalCreate):
+    with SessionLocal() as db:
+        row = GoalRecord(**payload.model_dump())
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+        return serialize_goal(row)
+
+
+@router.patch("/goals/{goal_id}")
+async def update_goal(goal_id: int, payload: GoalUpdate):
+    with SessionLocal() as db:
+        row = db.get(GoalRecord, goal_id)
+        if not row:
+            raise HTTPException(404, "Goal not found")
+        for key, value in payload.model_dump(exclude_unset=True).items():
+            setattr(row, key, value)
+        db.commit()
+        db.refresh(row)
+        return serialize_goal(row)
+
+
+@router.delete("/goals/{goal_id}", status_code=204)
+async def delete_goal(goal_id: int):
+    with SessionLocal() as db:
+        row = db.get(GoalRecord, goal_id)
+        if not row:
+            raise HTTPException(404, "Goal not found")
+        db.delete(row)
+        db.commit()
 
 
 @router.get("/agent-runs/{job_id}")

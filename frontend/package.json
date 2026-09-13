@@ -14,7 +14,10 @@
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.112",
     "@base-ui/react": "^1.7.0",
+    "@copilotkit/react-core": "^1.71.1",
+    "@copilotkit/runtime": "^1.71.1",
     "@hookform/resolvers": "^5.7.1",
     "@shadcn/react": "^0.3.0",
     "class-variance-authority": "0.7.1",

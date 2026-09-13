@@ -17,11 +17,13 @@ def encrypted_pdf_bytes(tmp_path, password: str) -> bytes:
     return encrypted.read_bytes()
 
 
-def test_integration_status_is_honest():
+def test_integration_status_is_honest(monkeypatch):
+    monkeypatch.setattr("app.api.routes.connected_account", lambda: None)
     with TestClient(app) as client:
         data = client.get("/api/integrations/status").json()
     assert data["gmail"]["connected"] is False
-    assert data["gmail"]["status"] == "Synthetic demo"
+    assert data["gmail"]["status"] == "Setup required"
+    assert data["gmail"]["mode"] == "real"
     assert data["openrouter"]["verified"] is False
     assert data["google_sheets"]["implemented"] is False
 

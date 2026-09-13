@@ -3,6 +3,7 @@ import os
 import secrets
 import time
 from pathlib import Path
+from urllib.parse import urlparse
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
@@ -11,7 +12,7 @@ from app.config import PROJECT_ROOT, settings
 
 GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
 TOKEN_PATH = PROJECT_ROOT / "backend" / "token.json"
-_states: dict[str, float] = {}
+_states: dict[str, tuple[float, str]] = {}
 
 
 def oauth_configured() -> bool:
@@ -26,17 +27,25 @@ def authorization_url() -> str:
     if not oauth_configured():
         raise RuntimeError("Google OAuth is not configured")
     state = secrets.token_urlsafe(32)
-    _states[state] = time.time()
     flow = Flow.from_client_config(_client_config(), scopes=[GMAIL_SCOPE], redirect_uri=settings.google_redirect_uri)
     url, _ = flow.authorization_url(access_type="offline", include_granted_scopes="true", prompt="consent", state=state)
+    if not flow.code_verifier:
+        raise RuntimeError("OAuth PKCE verifier was not generated")
+    _states[state] = (time.time(), flow.code_verifier)
     return url
 
 
 def exchange_callback(authorization_response: str, state: str) -> None:
-    issued = _states.pop(state, None)
-    if issued is None or time.time() - issued > 600:
+    pending = _states.pop(state, None)
+    if pending is None or time.time() - pending[0] > 600:
         raise RuntimeError("Invalid or expired OAuth state")
-    flow = Flow.from_client_config(_client_config(), scopes=[GMAIL_SCOPE], state=state, redirect_uri=settings.google_redirect_uri)
+    flow = Flow.from_client_config(
+        _client_config(), scopes=[GMAIL_SCOPE], state=state,
+        redirect_uri=settings.google_redirect_uri,
+        code_verifier=pending[1], autogenerate_code_verifier=False,
+    )
+    if urlparse(settings.google_redirect_uri or "").hostname in {"127.0.0.1", "localhost"}:
+        os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
     flow.fetch_token(authorization_response=authorization_response)
     TOKEN_PATH.write_text(flow.credentials.to_json(), encoding="utf-8")
     os.chmod(TOKEN_PATH, 0o600)

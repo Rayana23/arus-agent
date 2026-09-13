@@ -17,12 +17,22 @@ h1 { font-size: clamp(1.35rem, 2vw, 1.65rem); font-weight: 720; letter-spacing: 
 .notice { display: flex; gap: .75rem; border: 1px solid #f3dfae; border-radius: .85rem; background: #fffaf0; padding: 1rem 1.15rem; }
 .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; } .section-heading h2 { margin-top: .25rem; }
 .icon-tile { display: grid; width: 2.45rem; height: 2.45rem; flex: none; place-items: center; border-radius: .72rem; background: #e7f4f2; color: #0f766e; } .icon-tile svg { width: 1.15rem; height: 1.15rem; } .icon-tile.warning { background: #fff3d6; color: #a15c00; }
+.icon-tile.warm { background: #fff0bf; color: #9a6200; }
 .brand-mark { position: relative; display: grid; width: 2.25rem; height: 2.25rem; place-items: center; border-radius: .75rem; background: #0f766e; overflow: hidden; } .brand-mark::before, .brand-mark::after, .brand-mark span { content: ""; position: absolute; left: .48rem; right: .48rem; height: .14rem; border-radius: 1rem; background: white; transform: rotate(-12deg); } .brand-mark::before { top: .73rem; } .brand-mark span { top: 1.05rem; opacity: .82; } .brand-mark::after { top: 1.37rem; opacity: .58; }
 .step { display: grid; width: 2.25rem; height: 2.25rem; place-items: center; border-radius: 999px; } .step svg { width: 1rem; height: 1rem; } .step.done { background: #e4f3f0; color: #0f766e; } .step.warning { background: #fff3d6; color: #a15c00; }
 .mode-chip { display: inline-flex; align-items: center; width: fit-content; border: 1px solid #f2cf87; border-radius: 999px; background: #fff8e8; padding: .28rem .58rem; color: #85520a; font-size: .7rem; font-weight: 760; letter-spacing: .08em; line-height: 1; text-transform: uppercase; }
 .mode-chip.real { border-color: #a7dcd3; background: #eaf8f5; color: #0f665f; }
+.mode-chip.empty { border-color: #ead28f; background: #fff8e7; color: #805510; }
 .mode-chip.mini { border-color: #dce4e6; background: #f6f8f8; color: #607078; font-size: .62rem; }
 .status-text { display: inline-flex; align-items: center; gap: .3rem; font-size: .78rem; font-weight: 700; }
 .status-text svg { width: .9rem; height: .9rem; }
 .status-text.good { color: #0f766e; } .status-text.warning { color: #9a5b08; }
+.overview-banner, .goals-hero { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; border: 1px solid #c5dfd8; border-radius: 1.15rem; background: linear-gradient(125deg, #e5f5ef 0%, #f5fbf8 54%, #fff4cf 100%); padding: clamp(1.3rem, 3vw, 2rem); box-shadow: 0 10px 30px rgb(15 118 110 / .06); }
+.empty-strip { display: flex; align-items: center; gap: 1rem; border: 1px dashed #c8d9d5; border-radius: 1rem; background: #fbfdfc; padding: 1.1rem 1.25rem; } .empty-strip p { margin-top: .2rem; color: #65747a; font-size: .875rem; }
+.empty-inline { display: grid; min-height: 12rem; place-content: center; justify-items: start; gap: .65rem; color: #65747a; } .empty-inline p { font-weight: 650; color: #39494f; }
+.empty-surface { display: grid; min-height: 18rem; place-content: center; justify-items: center; gap: .85rem; border: 1px dashed #ccd9d7; border-radius: 1rem; background: #fbfdfc; padding: 2rem; text-align: center; } .empty-surface p { max-width: 30rem; color: #65747a; font-size: .875rem; line-height: 1.5; }
+.goal-card { border: 1px solid #eadba8; border-radius: 1.1rem; background: linear-gradient(145deg, #fffdf7, #fff6d9); padding: 1.35rem; box-shadow: 0 8px 24px rgb(120 81 11 / .05); }
+.goal-icon { display: grid; width: 2.8rem; height: 2.8rem; place-items: center; border-radius: .9rem; background: #dff1eb; color: #0f766e; } .goal-icon svg { width: 1.25rem; height: 1.25rem; }
+.goal-row { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 1rem; border-radius: .8rem; background: #f7faf9; padding: .8rem 1rem; text-align: left; transition: background .15s ease; } .goal-row:hover { background: #edf6f3; } .goal-row span:first-child { display: grid; gap: .15rem; } .goal-row strong { color: #233238; font-size: .9rem; } .goal-row small { color: #758289; }
 @media (max-width: 639px) { .metric-card { min-height: auto; } }
+@media (max-width: 767px) { .overview-banner, .goals-hero { align-items: flex-start; flex-direction: column; } }

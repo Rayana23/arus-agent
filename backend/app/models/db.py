@@ -1,5 +1,6 @@
-from datetime import datetime
-from sqlalchemy import JSON, DateTime, Integer, String, Text, UniqueConstraint, create_engine
+from datetime import date, datetime
+from decimal import Decimal
+from sqlalchemy import JSON, Date, DateTime, Integer, Numeric, String, Text, UniqueConstraint, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from app.config import settings
 
@@ -38,6 +39,19 @@ class AgentRun(Base):
     retry_count: Mapped[int] = mapped_column(Integer, default=0)
     redacted_error: Mapped[str | None] = mapped_column(String(120), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class GoalRecord(Base):
+    __tablename__ = "goals"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100))
+    purpose: Mapped[str] = mapped_column(String(40), index=True)
+    target_amount: Mapped[Decimal] = mapped_column(Numeric(16, 2))
+    saved_amount: Mapped[Decimal] = mapped_column(Numeric(16, 2), default=Decimal("0"))
+    currency: Mapped[str] = mapped_column(String(3), default="MYR")
+    target_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 connect_args = {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}

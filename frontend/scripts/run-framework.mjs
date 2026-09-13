@@ -2,6 +2,12 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readExecutionProfile } from "./execution-profile.mjs";
 
+try {
+  process.loadEnvFile(fileURLToPath(new URL("../../.env", import.meta.url)));
+} catch {
+  // The UI still runs in an honest setup-required state without local secrets.
+}
+
 const [command, ...args] = process.argv.slice(2);
 if (!["dev", "build"].includes(command)) throw new Error("Expected dev or build.");
 const managedLinux = readExecutionProfile() === "managed-linux";

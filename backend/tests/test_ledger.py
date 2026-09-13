@@ -20,3 +20,13 @@ def test_duplicate_and_currency_validation(valid_extraction):
     result = reconcile(valid_extraction)
     assert not result.valid
     assert len(result.errors) == 2
+
+
+def test_credit_card_reconciliation_uses_debits_as_charges(valid_extraction):
+    valid_extraction.account_type = "Platinum Mastercard"
+    valid_extraction.opening_balance = Decimal("1000.00")
+    valid_extraction.closing_balance = Decimal("900.00")
+
+    result = reconcile(valid_extraction)
+
+    assert result.valid and result.difference == Decimal("0.00")

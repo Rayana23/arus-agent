@@ -23,9 +23,16 @@ def reconcile(statement: StatementExtraction) -> ValidationResult:
         return ValidationResult(valid=False, errors=errors)
     credits = sum((t.amount for t in statement.transactions if t.direction == "credit"), Decimal("0"))
     debits = sum((t.amount for t in statement.transactions if t.direction == "debit"), Decimal("0"))
-    expected = (statement.opening_balance + credits - debits).quantize(MINOR_UNIT)
+    account_type = (statement.account_type or "").lower()
+    is_credit_account = statement.card_due_amount is not None or any(marker in account_type for marker in ("credit", "card", "visa", "mastercard"))
+    expected = (
+        statement.opening_balance + debits - credits
+        if is_credit_account
+        else statement.opening_balance + credits - debits
+    ).quantize(MINOR_UNIT)
     reported = statement.closing_balance.quantize(MINOR_UNIT)
     difference = (expected - reported).copy_abs()
     if difference > MINOR_UNIT:
-        errors.append("Opening balance plus credits minus debits does not match the closing balance.")
+        equation = "debits minus credits" if is_credit_account else "credits minus debits"
+        errors.append(f"Opening balance plus {equation} does not match the closing balance.")
     return ValidationResult(valid=not errors, expected_closing_balance=expected, reported_closing_balance=reported, difference=difference, errors=errors)
