@@ -1,0 +1,20 @@
+Arus Google Sheets ledger contract — MYR only
+
+Statements tab, columns A:J:
+statement_id, bank, account, type, currency, period, as_of, opening_balance, closing_balance, transaction_coverage
+
+One row per account and statement period. type = deposit or card.
+period = YYYY-MM (plain text). as_of = YYYY-MM-DD or a Google Sheets date.
+Balances are numerical MYR (not sen). transaction_coverage = TRUE only when all posted statement transactions have been imported and reviewed; FALSE for balance-only data.
+
+Transactions tab, columns A:G:
+statement_id, transaction_id, date, description, amount, kind, category
+
+amount = signed numerical MYR. Deposit debits are negative; card charges positive.
+kind = income, purchase, transfer, repayment, refund, or other.
+Use transfer only for confirmed own-account transfers. Repayment is not a new purchase.
+IDs must be stable and unique within each statement. Dates must lie in its stated month.
+Each complete statement must reconcile: opening_balance + signed transaction amounts = closing_balance.
+
+Read-only connection. Arus never writes back to this workbook.
+Column mapping can be adjusted after inspecting your actual sheet.

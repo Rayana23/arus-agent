@@ -1,0 +1,30 @@
+import { z } from 'zod';
+const date=z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(v=>!isNaN(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v);
+const transaction=z.object({id:z.string(),date,description:z.string().max(200),amount:z.number().int().safe(),kind:z.enum(['income','purchase','transfer','repayment','refund','other']),category:z.string().max(60),page:z.number().int().positive().default(1),sourceRow:z.number().int().positive().optional()});
+export const statementSchema=z.object({id:z.string(),bank:z.string().min(1).max(80),account:z.string().min(1).max(40),type:z.enum(['deposit','card']),currency:z.literal('MYR'),period:z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),asOf:date,opening:z.number().int().safe(),closing:z.number().int().safe(),transactions:z.array(transaction).max(2000),transactionCoverage:z.boolean(),sourceName:z.string().max(160)}).superRefine((s,ctx)=>{if(s.asOf.slice(0,7)!==s.period||s.transactions.some(t=>t.date.slice(0,7)!==s.period)||new Set(s.transactions.map(t=>t.id)).size!==s.transactions.length)ctx.addIssue({code:'custom',message:'Dates or transaction IDs are inconsistent.'});});
+export type Statement=z.infer<typeof statementSchema>;
+export const importSchema=z.array(statementSchema).min(1).max(40);
+export const money=(v:number|null)=>v===null?'—':new Intl.NumberFormat('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2}).format(v/100);
+export function minor(v:string){if(!/^\d{1,10}(\.\d{1,2})?$/.test(v))throw new Error('Enter a positive amount with up to two decimal places.');const [a,b='']=v.split('.');return Number(a)*100+Number(b.padEnd(2,'0'));}
+export const reconciled=(s:Statement)=>s.transactionCoverage&&s.opening+s.transactions.reduce((n,t)=>n+t.amount,0)===s.closing;
+export function summarize(statements:Statement[],period:string){
+ const latest=Object.values(statements.reduce<Record<string,Statement>>((a,s)=>{const k=s.bank+'|'+s.account+'|'+s.type;if(!a[k]||a[k].asOf<s.asOf)a[k]=s;return a;},{}));
+ const eligible=latest.filter(s=>reconciled(s)||!s.transactionCoverage);
+ const deposits=eligible.filter(s=>s.type==='deposit'),cards=eligible.filter(s=>s.type==='card');
+ const current=statements.filter(s=>s.period===period),accepted=current.filter(reconciled);
+ const missingAccounts=latest.filter(a=>!current.some(b=>a.bank===b.bank&&a.account===b.account&&a.type===b.type)).length;
+ const tx=accepted.flatMap(s=>s.transactions.map(t=>({...t,statement:s})));
+ const external=tx.filter(t=>t.statement.type==='deposit'&&t.kind!=='transfer');
+ const income=external.filter(t=>t.amount>0).reduce((a,t)=>a+t.amount,0),outflow=-external.filter(t=>t.amount<0).reduce((a,t)=>a+t.amount,0);
+ const purchases=tx.filter(t=>t.kind==='purchase'),spending=purchases.reduce((a,t)=>a+Math.abs(t.amount),0);
+ const categories=Object.entries(purchases.reduce<Record<string,number>>((a,t)=>{a[t.category]=(a[t.category]||0)+Math.abs(t.amount);return a;},{})).map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value);
+ const weeks=Array.from({length:5},(_,i)=>({name:`${i*7+1}–${Math.min(i*7+7,new Date(Number(period.slice(0,4)),Number(period.slice(5)),0).getDate())}`,income:0,outflow:0}));external.forEach(t=>{const w=weeks[Math.min(4,Math.floor((Number(t.date.slice(8))-1)/7))];if(t.amount>0)w.income+=t.amount/100;else w.outflow-=t.amount/100;});
+ return {latest,deposits,cards,cash:deposits.length?deposits.reduce((a,s)=>a+s.closing,0):null,debt:cards.length?cards.reduce((a,s)=>a+s.closing,0):null,current,accepted,tx,income,outflow,net:income-outflow,spending,categories,weeks,missingAccounts,complete:current.length>0&&current.length===accepted.length&&missingAccounts===0,refunds:tx.filter(t=>t.kind==='refund').reduce((a,t)=>a+Math.abs(t.amount),0)};
+}
+export function mergeStatements(existing:Statement[],incoming:Statement[]){const all=[...existing];for(const s of incoming){const old=all.find(x=>x.id===s.id||(x.bank===s.bank&&x.account===s.account&&x.period===s.period&&x.type===s.type));if(old){if(JSON.stringify(old)!==JSON.stringify(s))throw new Error('A different version of this account and period exists. Remove the old statement in Coverage before importing.');}else all.push(s);}return all;}
+const tx=(id:string,day:string,description:string,amount:number,kind:Statement['transactions'][number]['kind'],category:string)=>({id,date:`2026-08-${day}`,description,amount,kind,category,page:1});
+export const SAMPLE:Statement[]=[
+{id:'demo-current',bank:'Sample Bank A',account:'Current •1234',type:'deposit',currency:'MYR',period:'2026-08',asOf:'2026-08-31',opening:830065,closing:1242065,transactionCoverage:true,sourceName:'Illustrative current account',transactions:[tx('a1','01','Salary',800000,'income','Income'),tx('a2','02','Monthly rent',-180000,'purchase','Home'),tx('a3','08','Groceries',-42000,'purchase','Groceries'),tx('a4','12','Cafés & meals',-12000,'purchase','Food & drink'),tx('a5','17','Transport',-20000,'purchase','Transport'),tx('a6','20','Transfer to own savings',-60000,'transfer','Own transfer'),tx('a7','24','Card repayment',-74000,'repayment','Card payment')]},
+{id:'demo-savings',bank:'Sample Bank B',account:'Savings •5678',type:'deposit',currency:'MYR',period:'2026-08',asOf:'2026-08-31',opening:540000,closing:600000,transactionCoverage:true,sourceName:'Illustrative savings account',transactions:[tx('b1','20','Transfer from own current account',60000,'transfer','Own transfer')]},
+{id:'demo-card',bank:'Sample Bank A',account:'Card •9012',type:'card',currency:'MYR',period:'2026-08',asOf:'2026-08-31',opening:154000,closing:248000,transactionCoverage:true,sourceName:'Illustrative credit card',transactions:[tx('c1','05','Travel booking',90000,'purchase','Travel'),tx('c2','15','Electronics',78000,'purchase','Shopping'),tx('c3','24','Repayment received',-74000,'repayment','Card payment')]}
+];
