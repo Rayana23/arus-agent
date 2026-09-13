@@ -1,0 +1,23 @@
+ARUS — GOOGLE DRIVE / SHEETS CONNECTION
+
+CopilotKit opens the connection and refreshes the sheet. Google Identity Services grants read-only Sheets access. The website cannot reuse Codex's Google Drive authorization.
+
+1. In Google Cloud Console, create/select a project and enable Google Sheets API.
+2. Configure the OAuth consent screen. For a testing app, add your own Google account as a test user.
+3. Create an OAuth client ID of type Web application.
+4. Add Authorized JavaScript origins:
+   https://arus-financial-workspace.lowchening108.chatgpt.site
+   http://localhost:5174 (only if using this local preview)
+5. Paste the public client ID into Arus Connection setup, or configure GOOGLE_OAUTH_CLIENT_ID in the site's environment.
+6. Open the prepared Sheet under the same Google account, then click Authorize Google & read sheet.
+
+The Sheet stays private. Requested scope: https://www.googleapis.com/auth/spreadsheets.readonly
+Tokens are kept only in memory for the current tab. Reload or expiry requires a new authorization gesture. Tokens are sent only to the Arus sheet endpoint and Google, never Exa or CopilotKit conversation state.
+
+Configured Sheet:
+https://docs.google.com/spreadsheets/d/1zJPT1VTAHXu4pIcG6KLM_NGtn6h4O1bqph01Quh_Kno/edit
+
+Read tabs: Statements (A:O), Transactions (A:L), Profile (A:I).
+The first blank row terminates raw tables, so reconciliation notes below them are excluded.
+
+This demo includes a supplied sample card statement plus clearly marked synthetic financial inputs. It is not a real personal financial assessment.

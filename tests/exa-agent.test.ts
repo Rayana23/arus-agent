@@ -1,0 +1,9 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {agentCards,agentRequest,AgentRun} from '../lib/exa-agent';
+import {researchRequest} from '../lib/research';
+const input={metric:'savings',band:'below_target',region:'MY',confirmed:true} as const;
+const run:AgentRun={id:'agent_run_test',status:'completed',output:{structured:{title:'Build a sustainable savings habit',recommendation:'Review a recurring contribution after essential expenses.',rationale:'A below-target savings rate makes a manageable recurring plan relevant.',steps:['Review essential expenses before setting a contribution.'],caveat:'Your essential expenses are unknown.'},grounding:[{field:'structured.recommendation',citations:[{title:'Savings guide',url:'https://www.mrmoneytv.com/articles/savings/'}]}]}};
+test('Agent produces actionable advice with field-level source provenance',()=>{const cards=agentCards(run,input);assert.equal(cards.length,1);assert.match(cards[0].suggestion,/recurring/);assert.equal(cards[0].steps?.length,1);assert.equal(cards[0].sources?.length,1);});
+test('Unfinished, nullable, uncited and outside-corpus advice is withheld',()=>{assert.deepEqual(agentCards({...run,status:'running'},input),[]);assert.deepEqual(agentCards({...run,output:{structured:null}},input),[]);assert.deepEqual(agentCards({...run,output:{...run.output,grounding:[]}},input),[]);assert.deepEqual(agentCards({...run,output:{...run.output,grounding:[{field:'structured.recommendation',citations:[{url:'https://evil.test/articles/savings/'}]}]}},input),[]);});
+test('Research intake rejects private fields and uses fixed effort',()=>{assert.equal(researchRequest.safeParse({...input,income:10000}).success,false);assert.equal(agentRequest(input).effort,'medium');assert.match(agentRequest(input).query,/below_target/);});

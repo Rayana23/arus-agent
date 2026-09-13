@@ -1,0 +1,8 @@
+'use client';
+type TokenResponse={access_token?:string;expires_in?:number;error?:string};
+type GoogleIdentity={accounts:{oauth2:{initTokenClient:(config:{client_id:string;scope:string;callback:(r:TokenResponse)=>void;error_callback:()=>void})=>{requestAccessToken:()=>void};hasGrantedAllScopes:(response:TokenResponse,scope:string)=>boolean;revoke:(token:string,callback:()=>void)=>void}}};
+declare global{interface Window{google?:GoogleIdentity}}
+let loading:Promise<void>|undefined;
+export function loadGoogleIdentity(){if(window.google)return Promise.resolve();return loading??=new Promise<void>((resolve,reject)=>{const script=document.createElement('script');script.src='https://accounts.google.com/gsi/client';script.async=true;script.onload=()=>resolve();script.onerror=()=>{loading=undefined;reject(new Error('Google sign-in could not load. Check your connection.'));};document.head.appendChild(script);});}
+// Call from a user click after the Google script has loaded, preserving the popup gesture.
+export function authorizeGoogle(clientId:string,onToken:(token:string,expiresAt:number)=>void,onError:(message:string)=>void){if(!window.google){onError('Google sign-in is still loading. Try again shortly.');return;}const scope='https://www.googleapis.com/auth/spreadsheets.readonly';window.google.accounts.oauth2.initTokenClient({client_id:clientId,scope,callback:r=>{if(r.error||!r.access_token||!window.google!.accounts.oauth2.hasGrantedAllScopes(r,scope)){onError('Google read access was not granted. The previous snapshot is unchanged.');return;}onToken(r.access_token,Date.now()+(r.expires_in||3600)*1000);},error_callback:()=>onError('Google sign-in was closed or blocked. Try connecting again.')}).requestAccessToken();}

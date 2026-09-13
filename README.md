@@ -1,66 +1,38 @@
 # Arus
 
-Arus is a Gmail-native financial statement agent. It discovers supported statement PDFs, decrypts and extracts them locally, asks OpenRouter for strict structured data, and accepts figures only after deterministic ledger reconciliation.
+Arus combines two hackathon workstreams in one repository:
 
-## What is implemented
+- `frontend/` + `backend/`: a Gmail-native financial statement agent using real read-only Gmail OAuth, local encrypted-PDF processing, real OpenRouter extraction, deterministic ledger reconciliation, transaction provenance, CSV export, and editable financial goals.
+- Root web app: the Google Sheets, financial-health metrics, and Exa research dashboard contributed from `low108/arus-dashboard`.
 
-- Responsive Next.js dashboard with Overview, Transactions, Statements, Review, Agent Activity, and Settings views.
-- Backend-aware integration status, visible encrypted-PDF import, real Gmail OAuth controls, and truthful real/synthetic/mocked labels.
-- Transaction search, category/account/date filters, sorting, pagination, category correction, source-page provenance, and CSV export.
-- FastAPI health, import, sync, statement, overview, job, provider-health, and activity endpoints.
-- Local encrypted-PDF detection, SHA-256 deduplication key, isolated decryption, page-aware text extraction, and automatic temporary-file cleanup.
-- Provider-neutral model interface, genuine OpenRouter client, safe health check, strict Pydantic output, timeout, and bounded retries.
-- Exact `Decimal` reconciliation: opening balance + credits - debits = closing balance.
-- SQLite SQLAlchemy records separating model extraction, accepted records, and user corrections.
-- Synthetic, mock, and real Gmail adapter boundaries; safe activity metadata.
+Secrets belong only in ignored local environment files. Never commit OAuth credentials, access tokens, PDF passwords, or API keys.
 
-## Fixture-driven, mocked, and planned
-
-- **Fixture-driven:** the dashboard and default sync response use clearly labelled synthetic Gmail metadata and synthetic financial records.
-- **Mocked in tests:** OpenRouter responses and Gmail attachments. The opt-in integration test makes a real safe OpenRouter connectivity call when a key is configured.
-- **Credential-dependent:** Gmail OAuth and real attachment discovery are implemented but need Google client credentials and authorization. OpenRouter verification needs a local API key. Password retry uses manual source re-submission.
-- **Not implemented:** Exa, OpenAI briefings, Gemma, online banking access, or a chat interface.
-
-## Setup
-
-Requirements: Node.js 22+, Python 3.12+, and system libraries supported by `pikepdf`.
+## Run the Gmail and statement demo
 
 ```bash
 cp .env.example .env
 cd backend
-python3.12 -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -e '.[test]'
-cd ../frontend
+uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+In a second terminal:
+
+```bash
+cd frontend
 npm ci
+npm run dev
 ```
 
-Set environment values locally. Never commit `.env`.
+Open `http://localhost:5173`. Add `http://127.0.0.1:8000/api/auth/google/callback` to the OAuth web client's authorized redirect URIs.
 
-## Run
+## Verify
 
 ```bash
-# terminal 1
-cd backend && source .venv/bin/activate && uvicorn app.main:app --reload
-
-# terminal 2
-cd frontend && npm run dev
+cd backend && .venv/bin/pytest
+cd frontend && npm run lint && npx tsc --noEmit && npm run build
 ```
 
-Open `http://localhost:3000`. The API health check is `http://localhost:8000/health`.
-
-## Test
-
-```bash
-cd backend
-source .venv/bin/activate
-pytest -m 'not integration'
-```
-
-The real OpenRouter check is opt-in:
-
-```bash
-pytest -m integration backend/tests/test_provider.py
-```
-
-No test prints credentials. See `docs/security.md`, `docs/integration-audit.md`, and `docs/manual-test-checklist.md` before using real statements.
+The dashboard never substitutes fabricated financial values when a real integration is unavailable.
