@@ -42,3 +42,9 @@ logs/
 .codex/
 outputs/
 work/
+agent/_ledger.csv
+agent/facts.json
+agent/merchant_rules.json
+agent/report.png
+agent/_render.html
+agent/_last_update.txt

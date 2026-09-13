@@ -4,6 +4,7 @@ Arus combines two hackathon workstreams in one repository:
 
 - `frontend/` + `backend/`: a Gmail-native financial statement agent using real read-only Gmail OAuth, local encrypted-PDF processing, real OpenRouter extraction, deterministic ledger reconciliation, transaction provenance, CSV export, and editable financial goals.
 - Root web app: the Google Sheets, financial-health metrics, and Exa research dashboard contributed from `low108/arus-dashboard`.
+- `agent/`: the imported Maybank/card parsers, deterministic spending consolidator, OpenRouter merchant sorter, and optional Telegram report flow from `arus-combined` (without its synthetic fixtures).
 
 Secrets belong only in ignored local environment files. Never commit OAuth credentials, access tokens, PDF passwords, or API keys.
 

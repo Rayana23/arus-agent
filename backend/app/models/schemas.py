@@ -19,6 +19,43 @@ class Direction(StrEnum):
     CREDIT = "credit"
 
 
+class TransactionCategory(StrEnum):
+    HOUSING = "Housing"
+    GROCERIES = "Groceries"
+    DINING = "Dining"
+    TRANSPORT = "Transport"
+    UTILITIES = "Utilities"
+    SHOPPING = "Shopping"
+    SUBSCRIPTIONS = "Subscriptions"
+    ENTERTAINMENT = "Entertainment"
+    INSURANCE = "Insurance"
+    HEALTH = "Health"
+    EDUCATION = "Education"
+    TRAVEL = "Travel"
+    CASH = "Cash"
+    GIFTS = "Gifts"
+    FEES = "Fees"
+    INVESTING = "Investing"
+    INCOME = "Income"
+    TRANSFER = "Transfer"
+    REFUND = "Refund"
+    CARD_PAYMENT = "Card payment"
+    OTHER = "Other"
+
+
+class CategorizationSuggestion(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    source_identifier: str
+    suggested_merchant: str = Field(min_length=1, max_length=100)
+    suggested_category: TransactionCategory
+    category_confidence: Decimal = Field(ge=0, le=1)
+
+
+class CategorizationBatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    results: list[CategorizationSuggestion]
+
+
 class TransactionExtraction(BaseModel):
     model_config = ConfigDict(extra="forbid")
     source_identifier: str

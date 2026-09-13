@@ -14,7 +14,7 @@ from app.gmail.oauth import authorization_url, connected_account, disconnect, ex
 from app.gmail.sync import sync_attachments
 from app.ledger.reconcile import reconcile
 from app.models.db import AgentRun, GoalRecord, SessionLocal, StatementRecord
-from app.models.schemas import GoalCreate, GoalUpdate, StatementState
+from app.models.schemas import GoalCreate, GoalUpdate, StatementExtraction, StatementState
 from app.providers.openrouter import OpenRouterClient, ProviderError
 
 router = APIRouter(prefix="/api")
@@ -32,8 +32,12 @@ async def process_record(db, record: StatementRecord, content: bytes, password: 
         pages = processor.extract(content, password)
         add_activity(db, job_id, "Local PDF decryption", "pikepdf + pdfplumber (LOCAL)", "completed", pdf_started, len(pages))
         model_started = time.perf_counter()
-        extraction = await OpenRouterClient().extract(pages)
+        model_client = OpenRouterClient()
+        extraction = await model_client.extract(pages)
         add_activity(db, job_id, "OpenRouter extraction", "OpenRouter (REAL)", "completed", model_started, len(extraction.transactions), model=settings.openrouter_model)
+        category_started = time.perf_counter()
+        categorized = await model_client.categorize(extraction.transactions)
+        add_activity(db, job_id, "Transaction categorization", "OpenRouter (REAL)", "completed", category_started, categorized, model=settings.openrouter_model)
         ledger_started = time.perf_counter()
         validation = reconcile(extraction)
         add_activity(db, job_id, "Ledger Guard validation", "Deterministic code", "completed" if validation.valid else "needs_review", ledger_started, len(extraction.transactions), error=None if validation.valid else "ReconciliationMismatch")
@@ -117,7 +121,7 @@ async def import_statement(pdf: UploadFile = File(...), user_id: str = Form(...)
             return {"job_id": job_id, "statement_id": existing.id, "state": existing.state, "duplicate": True}
         record = existing or StatementRecord(user_id=user_id, attachment_sha256=digest, bank_layout=bank_layout, state=StatementState.PROCESSING)
         record.state = StatementState.PROCESSING; record.bank_layout = bank_layout
-        record.safe_error = None; record.model_extraction = None; record.accepted_extraction = None; record.user_corrections = None
+        record.safe_error = None; record.model_extraction = None; record.accepted_records = None; record.user_corrections = None
         if not existing: db.add(record)
         db.commit(); db.refresh(record)
         try:
@@ -188,6 +192,36 @@ def consolidated_transactions() -> list[dict]:
 
 @router.get("/transactions")
 async def transactions(): return consolidated_transactions()
+
+
+@router.post("/transactions/categorize")
+async def categorize_transactions():
+    """Backfill semantic labels on already-verified real transactions."""
+    job_id = f"job_{uuid.uuid4().hex[:12]}"
+    started = time.perf_counter()
+    categorized = 0
+    updated_statements = 0
+    try:
+        with SessionLocal() as db:
+            rows = db.scalars(select(StatementRecord).where(StatementRecord.state == StatementState.IMPORTED)).all()
+            model_client = OpenRouterClient()
+            for row in rows:
+                extraction = StatementExtraction.model_validate(row.accepted_records or {})
+                if not any(not transaction.suggested_category or not transaction.suggested_merchant for transaction in extraction.transactions):
+                    continue
+                categorized += await model_client.categorize(extraction.transactions)
+                value = extraction.model_dump(mode="json")
+                row.accepted_records = value
+                row.model_extraction = value
+                updated_statements += 1
+            add_activity(db, job_id, "Transaction categorization", "OpenRouter (REAL)", "completed", started, categorized, model=settings.openrouter_model)
+            db.commit()
+    except ProviderError as exc:
+        with SessionLocal() as db:
+            add_activity(db, job_id, "Transaction categorization", "OpenRouter (REAL)", "error", started, error=type(exc).__name__, model=settings.openrouter_model)
+            db.commit()
+        raise HTTPException(503, {"code": "provider_failed", "message": "OpenRouter categorization could not be verified."}) from exc
+    return {"job_id": job_id, "categorized": categorized, "updated_statements": updated_statements}
 
 
 @router.get("/export/transactions.csv")

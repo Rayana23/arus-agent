@@ -17,6 +17,7 @@ export const api = {
   overview: () => request<OverviewData>("/api/overview"),
   statements: () => request<Array<Record<string, unknown>>>("/api/statements"),
   transactions: () => request<Transaction[]>("/api/transactions"),
+  categorizeTransactions: () => request<{ job_id: string; categorized: number; updated_statements: number }>("/api/transactions/categorize", { method: "POST" }),
   activity: (jobId: string) => request<Array<Record<string, unknown>>>(`/api/agent-runs/${jobId}`),
   sync: () => request<Record<string, unknown>>("/api/sync", { method: "POST" }),
   verifyOpenRouter: () => request<Record<string, unknown>>("/api/integrations/openrouter/verify", { method: "POST" }),
