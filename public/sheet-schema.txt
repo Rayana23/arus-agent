@@ -18,3 +18,5 @@ Each complete statement must reconcile: opening_balance + signed transaction amo
 
 Read-only connection. Arus never writes back to this workbook.
 Column mapping can be adjusted after inspecting your actual sheet.
+
+The three headline metrics additionally require confirmed monthly gross income, required debt payments, new savings/investment contributions, other assets, other liabilities and their valuation date. These are currently entered through Review Inputs. If they already exist in your spreadsheet, provide its link so those actual columns can be mapped instead. Do not infer gross income from net salary deposits or count all internal transfers as new savings.
