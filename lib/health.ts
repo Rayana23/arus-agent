@@ -6,7 +6,7 @@ export const SAMPLE_PROFILE:Profile={period:'2026-08',asOf:'2026-08-31',otherAss
 export const blankProfile:Profile={period:'',asOf:'',otherAssets:0,otherLiabilities:0,grossIncome:0,debtPayments:0,savingsContributions:0,confirmed:false};
 export function healthMetrics(statements:Statement[],period:string,p:Profile){
  const cutoff=period+'-31';const latest=Object.values(statements.filter(s=>s.asOf<=cutoff).reduce<Record<string,Statement>>((a,s)=>{const k=s.bank+'|'+s.account+'|'+s.type;if(!a[k]||a[k].asOf<s.asOf)a[k]=s;return a;},{}));
- const valid=latest.filter(s=>reconciled(s)||!s.transactionCoverage);const bankAssets=valid.reduce((n,s)=>n+(s.type==='deposit'?Math.max(0,s.closing):Math.max(0,-s.closing)),0),bankLiabilities=valid.reduce((n,s)=>n+(s.type==='card'?Math.max(0,s.closing):Math.max(0,-s.closing)),0);
+ const valid=latest.filter(s=>s.balancesKnown!==false&&(reconciled(s)||!s.transactionCoverage));const bankAssets=valid.reduce((n,s)=>n+(s.type==='deposit'?Math.max(0,s.closing):Math.max(0,-s.closing)),0),bankLiabilities=valid.reduce((n,s)=>n+(s.type==='card'?Math.max(0,s.closing):Math.max(0,-s.closing)),0);
  const confirmed=p.confirmed&&p.period===period,complete=confirmed&&latest.length>0&&valid.length===latest.length;
  const totalAssets=bankAssets+p.otherAssets,totalLiabilities=bankLiabilities+p.otherLiabilities;
  const netWorth=complete?totalAssets-totalLiabilities:null;
