@@ -4,13 +4,17 @@ A private dashboard consolidating statement balances and ledger rows from Google
 
 ## Run and verify
 
-Node 22+, `npm install`, `npm run dev`. Domain tests: `npx tsx --test tests/domain.test.ts`. Type checking: `npx tsc --noEmit`. The Sites helper builds and packages the Cloudflare-compatible deployment.
+Node 22+, `npm install`, `npm run dev`. Domain tests: `npx esbuild tests/domain.test.ts --bundle --platform=node --format=esm --outfile=/tmp/arus-tests.mjs`, then `node --test /tmp/arus-tests.mjs` (bundling avoids an upstream fast-json-patch/tsx resolution issue). Type checking: `npx tsc --noEmit`. The Sites helper builds and packages the Cloudflare-compatible deployment.
 
 ## Current connection status
 
-The user's Google Sheet link and credentials have not yet been supplied. The deployed app therefore starts with explicitly illustrative data. The Sheets adapter is implemented against the provisional schema in `public/sheet-schema.txt`; map it to the user's actual columns before claiming a live connection. No PDF upload or Gmail ingestion is part of this dashboard.
+The private native Google Sheet is https://docs.google.com/spreadsheets/d/1zJPT1VTAHXu4pIcG6KLM_NGtn6h4O1bqph01Quh_Kno/edit. The app starts from a verified snapshot of its extracted sample card and synthetic supplemental inputs, clearly labelled demo data. Native Google Sheets recalculation and the application both produce net worth RM49,698.13, DTI13.151%, savings20%.
 
-Enable Google Sheets API and give a service account Viewer access to the intended private spreadsheet. Configure GOOGLE_SHEET_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY through server-side hosting secrets. Never commit credentials. The adapter uses a read-only Sheets scope, a fixed sheet ID and no domain-wide delegation. It rejects links to other sheets. Nothing is written back. The app reads Statements A:J and Transactions A:G, validates IDs, dates, joins, MYR amounts and duplicate account/month statements, and checks reconciliation. A failed refresh preserves the last snapshot.
+CopilotKit v2 registers four frontend tools: connect_google_drive, refresh_google_sheet, show_financial_metrics and research_articles. An AG-UI self-managed deterministic controller dispatches guided actions locally. No open-ended LLM or Copilot cloud runtime is configured. Tokens are kept outside agent messages and tool arguments.
+
+For live read access, configure GOOGLE_OAUTH_CLIENT_ID or paste the public web client ID in Connection setup. Google Identity Services uses a user-initiated popup and spreadsheets.readonly scope. Add the deployed site's JavaScript origin, enable Sheets API, and allow the Google account on the testing consent screen. The website cannot reuse Codex's Drive connection. Tokens stay in memory and expire; failed refresh preserves the snapshot. Setup: public/google-connection.txt. The Google OAuth client ID has not been supplied; live app authorization has not been verified.
+
+Alternatively set GOOGLE_SHEET_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY as server environment values and grant that service account Viewer access. Never commit credentials. The server accepts only its configured spreadsheet. Read ranges: Statements A:O, Transactions A:L, Profile A:I. The first blank row terminates a raw table, excluding notes beneath it. Native serial dates are converted; posted dates determine monthly transaction totals while complete statement cycles determine reconciliation.
 
 ## Three metric definitions
 
@@ -26,19 +30,19 @@ Required monthly debt payments divided by gross monthly income, multiplied by 10
 
 New monthly savings and investment contributions divided by gross monthly income, multiplied by 100. Count a contribution once. Exclude transfers of existing savings, borrowed funds and market appreciation. The user-defined target is at least 20% of gross income. This is deliberately not relabelled as the common 50/30/20 take-home-income rule.
 
-The sample uses RM 18,420.65 bank cash, RM 50,000 other assets, RM 2,480 card liability and RM 18,000 other debt: net worth RM 47,940.65. Gross monthly income RM 10,000, required payments RM 1,324 and new contributions RM 2,000 yield DTI 13.24% and savings rate 20%. All are synthetic examples, not observations about the user.
+The supplemented scenario includes bank deposits RM20,000, investments RM50,000, card debt RM2,301.87 and loan principal RM18,000. Gross income RM10,000, required instalments RM1,315.10, and new contributions RM2,000. Supplemental September month-end figures are fabricated test data. The supplied card remains dated 8 September; August posted transactions stay in August. Its September coverage is partial. One wallet top-up remains unclassified.
 
-The Review Inputs dialog supplements missing statement fields. Real Sheets refresh invalidates confirmation; the first real sync clears sample profile values. All app data, profile inputs and saved research cards remain in the current tab and clear on reload. The full financial profile is currently entered locally; it can be mapped to additional Sheets columns once the real sheet is inspected.
+The Profile tab supplies reviewed supplemental inputs and a confirmation boolean. Refresh reads the profile alongside balances; editing inputs locally lasts only until refresh/reload. No actual holdings or personal financial account completeness is inferred from this demonstration.
 
-## Exa integration
+## Exa article ingestion
 
-With server secret EXA_API_KEY, POST /api/research calls https://api.exa.ai/search using type auto, contents.highlights true, five results and official-source domain preferences. No news-only category is used for evergreen financial guidance. Without a key, the working https://mcp.exa.ai/mcp web_search_exa transport remains available. MCP parsing accepts SSE or JSON. Provider failures are visible; no result is invented. The direct authenticated Search API path awaits an API key for live verification; the MCP path has been exercised live.
+Queries contain only a fixed metric-topic phrase, geography and site:mrmoneytv.com/articles/. Private amounts, ratios, PII, raw queries and tokens are rejected by a strict request schema. The selected editorial publisher is Mr Money TV, not a regulator. Non-Malaysia requests return an explicit corpus mismatch.
 
-The request schema permits only metric, general band, geography and confirmation. It rejects exact ratios, financial amounts and arbitrary free text. Queries are built from fixed phrases for financial education and never contain ledger rows or identity. Source cards show a short evidence excerpt, HTTPS primary-source link, publisher, publication date when supplied, actual retrieval date, effective-date caveat and a deterministic review prompt. Prompts are educational templates selected by the metric band, not an LLM-generated personalized financial recommendation. Research reflects metric status at the time of the search and must be refreshed after input changes. The app never trades, predicts returns or determines eligibility for borrowing or tax treatment.
+With EXA_API_KEY, Search API retrieves bounded article text. Without a key, Exa MCP web_search_exa discovers URLs, strict host/path validation rejects other sites and indexes, and web_fetch_exa retrieves actual article text. Only retrieved, topic-matching evidence produces a card. Cards include a <=23-word excerpt, source URL, publication and retrieval dates, and a deterministic review prompt. Prompts are Arus interpretation, not publisher quotations or individualized advice. Product rates, tax eligibility and regulatory details are not asserted as current truth. Article content never becomes agent instructions. The MCP search-and-fetch path has been exercised live; the authenticated direct path awaits a key.
 
 ## Limitations
 
-MYR and monthly statement periods only. Upstream Sheets classifications and transfer ownership must already be reviewed. Unknown financial accounts cannot be discovered from absent rows. No reliable gross-income or savings-contribution inference from raw salary/transfer descriptions. One locally confirmed monthly profile at a time, no persistent trend history, automatic scheduled refresh or saved-user database. The product requires the user's real sheet and access configuration to complete integration.
+MYR and monthly statement periods only. Upstream Sheets classifications and transfer ownership must already be reviewed. Unknown financial accounts cannot be discovered from absent rows. No reliable gross-income or savings-contribution inference from raw salary/transfer descriptions. One locally confirmed monthly profile at a time, no persistent trend history, automatic scheduled refresh or saved-user database. App Google OAuth authorization still requires a configured client ID and consent. The sample ledger is ready in Drive.
 
 ## Sources
 
